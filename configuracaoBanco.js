@@ -1,3 +1,4 @@
+require('dotenv').config()
 const credenciais = {
     user: process.env.DB_USER || 'postgres',
     host: process.env.DB_HOST || 'localhost',
@@ -5,4 +6,5 @@ const credenciais = {
     password: process.env.DB_PASSWORD || '48344834',
     port: process.env.DB_PORT || 5432,
 };
+console.log(credenciais.password)
 module.exports = credenciais;
