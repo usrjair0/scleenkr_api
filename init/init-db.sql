@@ -1,62 +1,119 @@
--- 1. Tabela EMPRESAS (Dados Cadastrais da Loja)
+-- $cleenkr Database Schema 2026
+-- Nome do Banco de Dados: scleenkr
+
+BEGIN;
+
+-- 1. Gestão de Empresas (Unidades de Negócio)
 CREATE TABLE IF NOT EXISTS empresas (
     id_empresa SERIAL PRIMARY KEY,
     razao_social VARCHAR(255) NOT NULL,
     nome_fantasia VARCHAR(255),
-    cnpj VARCHAR(18) UNIQUE NOT NULL,
-    inscricao_estadual VARCHAR(50),
-    endereco VARCHAR(255),
+    cnpj VARCHAR(20) UNIQUE,
+    inscricao_estadual VARCHAR(20),
+    endereco TEXT,
     cidade VARCHAR(100),
-    estado CHAR(2),
+    estado CHARACTER(2),
     cep VARCHAR(10),
     telefone VARCHAR(20),
     email VARCHAR(100),
-    data_cadastro TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 2. Tabela PRODUTOS (Catálogo e Inventário)
-CREATE TABLE IF NOT EXISTS produtos (
-    id_produto SERIAL PRIMARY KEY,
-    categoria VARCHAR(100) NOT NULL,
-    descricao VARCHAR(255) NOT NULL,
-    preco NUMERIC(10, 2) NOT NULL,
-    tipo_item VARCHAR(20) NOT NULL DEFAULT 'Serviço',
-    custo_unitario NUMERIC(10, 2) DEFAULT 0.00,
-    estoque_atual INTEGER DEFAULT 0,
-    codigo_barra VARCHAR(50),
-    ativo BOOLEAN NOT NULL DEFAULT TRUE,
-    data_cadastro TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+-- 2. Operadores e Atendentes
+CREATE TABLE IF NOT EXISTS atendentes (
+    id_atendente SERIAL PRIMARY KEY,
+    id_empresa INTEGER REFERENCES empresas(id_empresa),
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    telefone VARCHAR(20),
+    cpf VARCHAR(14) UNIQUE,
+    ativo BOOLEAN DEFAULT TRUE,
+    data_cadastro TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. Tabela VENDAS (Registro do Cabeçalho da Transação)
+-- 3. Controle de Fluxo de Caixa (Sessões)
+CREATE TABLE IF NOT EXISTS sessoes_caixa (
+    id_sessao SERIAL PRIMARY KEY,
+    id_atendente INTEGER REFERENCES atendentes(id_atendente),
+    id_empresa INTEGER REFERENCES empresas(id_empresa),
+    data_abertura TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    data_fechamento TIMESTAMP,
+    valor_inicial NUMERIC(10, 2) DEFAULT 0,
+    valor_final NUMERIC(10, 2),
+    status VARCHAR(20) DEFAULT 'aberta'
+);
+
+-- 4. Registro de Vendas
 CREATE TABLE IF NOT EXISTS vendas (
     id_venda SERIAL PRIMARY KEY,
-    data_hora TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id_sessao INTEGER REFERENCES sessoes_caixa(id_sessao),
+    id_atendente INTEGER REFERENCES atendentes(id_atendente),
+    id_empresa INTEGER REFERENCES empresas(id_empresa),
+    data_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     valor_total_bruto NUMERIC(10, 2) NOT NULL,
     valor_pago_total NUMERIC(10, 2) NOT NULL,
-    valor_troco NUMERIC(10, 2) NOT NULL DEFAULT 0.00,
-    status_venda VARCHAR(50) NOT NULL
+    valor_troco NUMERIC(10, 2) DEFAULT 0,
+    quantidade_itens INTEGER DEFAULT 0,
+    status_venda VARCHAR(50) DEFAULT 'Finalizada',
+    editada BOOLEAN DEFAULT FALSE
 );
 
--- 4. Tabela ITENS_VENDIDOS (Corpo do Cupom Fiscal)
+-- 5. Itens da Transação (Snapshot de Venda)
 CREATE TABLE IF NOT EXISTS itens_vendidos (
-    id_item_vendido SERIAL PRIMARY KEY,
-    venda_id INTEGER NOT NULL REFERENCES vendas(id_venda),
+    id_item SERIAL PRIMARY KEY,
+    venda_id INTEGER REFERENCES vendas(id_venda) ON DELETE CASCADE,
+    id_produto INTEGER,
     categoria VARCHAR(100),
-    descricao_item VARCHAR(255),
-    preco_unitario NUMERIC(10, 2),
-    quantidade NUMERIC(10, 2),
-    subtotal NUMERIC(10, 2)
+    descricao_item TEXT NOT NULL,
+    preco_unitario NUMERIC(10, 2) NOT NULL,
+    quantidade INTEGER NOT NULL,
+    subtotal NUMERIC(10, 2) NOT NULL
 );
 
--- 5. Tabela PAGAMENTOS (Detalhes dos Métodos de Pagamento)
+-- 6. Detalhamento de Pagamentos e Referências
 CREATE TABLE IF NOT EXISTS pagamentos (
     id_pagamento SERIAL PRIMARY KEY,
-    venda_id INTEGER NOT NULL REFERENCES vendas(id_venda),
+    venda_id INTEGER REFERENCES vendas(id_venda) ON DELETE CASCADE,
     metodo VARCHAR(50) NOT NULL,
     valor_pago NUMERIC(10, 2) NOT NULL,
-    referencia_metodo VARCHAR(100)
+    referencia_metodo VARCHAR(255)
 );
+
+-- 7. Catálogo de Produtos e Gestão de Estoque
+CREATE TABLE IF NOT EXISTS produtos (
+    id_produto SERIAL PRIMARY KEY,
+    id_empresa INTEGER REFERENCES empresas(id_empresa),
+    categoria VARCHAR(100),
+    descricao TEXT NOT NULL,
+    preco NUMERIC(10, 2) NOT NULL,
+    custo_unitario NUMERIC(10, 2) DEFAULT 0,
+    estoque_atual INTEGER DEFAULT 0,
+    tipo_item VARCHAR(50) DEFAULT 'Produto',
+    codigo_barra VARCHAR(50),
+    ativo BOOLEAN DEFAULT TRUE
+);
+
+-- 8. Sangrias e Retiradas de Caixa
+CREATE TABLE IF NOT EXISTS retiradas_caixa (
+    id_retirada SERIAL PRIMARY KEY,
+    id_empresa INTEGER REFERENCES empresas(id_empresa),
+    id_sessao INTEGER REFERENCES sessoes_caixa(id_sessao),
+    valor NUMERIC(10, 2) NOT NULL,
+    motivo VARCHAR(255),
+    observacao TEXT,
+    data_retirada TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. Relatórios e Observações Diárias
+CREATE TABLE IF NOT EXISTS observacoes_diarias (
+    id_observacao SERIAL PRIMARY KEY,
+    id_empresa INTEGER REFERENCES empresas(id_empresa),
+    data_observacao DATE UNIQUE NOT NULL,
+    texto TEXT,
+    data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMIT;
 
 -- Inserir SEUS produtos específicos
 INSERT INTO produtos (categoria, descricao, preco, tipo_item, estoque_atual) VALUES
