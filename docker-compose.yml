@@ -22,7 +22,7 @@ services:
       DB_HOST: ${DB_HOST} 
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD} 
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_PORT: ${DB_PORT}
       PGSSLMODE: disable #Trava de segurança para o banco do docker com SSL desabilitado
     depends_on:
